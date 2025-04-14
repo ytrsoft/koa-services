@@ -1,0 +1,42 @@
+{
+  "name": "koa-services",
+  "version": "1.0.0",
+  "description": "A Koa.js REST API with TypeScript, TypeORM, and MySQL",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "dev": "nodemon src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "serve": "node dist/index.js"
+  },
+  "keywords": [
+    "koa",
+    "typescript",
+    "typeorm",
+    "mysql",
+    "rest-api"
+  ],
+  "author": "Iceman",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "koa": "^2.16.1",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^13.0.1",
+    "mysql2": "^3.14.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.22"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.15.0",
+    "@types/koa-bodyparser": "^4.3.12",
+    "@types/koa-router": "^7.4.8",
+    "@types/node": "^22.14.1",
+    "nodemon": "^3.1.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
