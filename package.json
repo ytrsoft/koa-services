@@ -23,6 +23,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "fs-extra": "^11.3.0",
     "koa": "^2.16.1",
     "koa-bodyparser": "^4.4.1",
     "koa-router": "^13.0.1",
@@ -31,11 +32,14 @@
     "typeorm": "^0.3.22"
   },
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
     "@types/koa": "^2.15.0",
     "@types/koa-bodyparser": "^4.3.12",
     "@types/koa-router": "^7.4.8",
     "@types/node": "^22.14.1",
+    "i": "^0.3.7",
     "nodemon": "^3.1.7",
+    "npm": "^11.3.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
