@@ -56,7 +56,7 @@ router.post('/upload', async (ctx) => {
   const dist = tmp(uploadId, hash)
   const src = (files.file as any).filepath
   await move(src, `${dist}/${index}.data`)
-  ctx.body = hash
+  ctx.body = { hash }
 })
 
 
