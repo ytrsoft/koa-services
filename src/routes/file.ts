@@ -1,99 +1,108 @@
+import fs from 'fs'
 import Router from 'koa-router'
-import fs from 'fs-extra'
+import { tmp, upload } from '../index'
+import { dataFiles, move, next } from '../utils'
 import path from 'path'
-import multer from '@koa/multer'
 
 export interface Hash {
   hash: string
 }
 
+export interface Next extends Hash {
+  uploadId: string
+}
+
 export interface Merge extends Hash {
   name: string
   chunks: number
+  uploadId: string
 }
 
 export interface Chunck extends Hash {
   index: number
-  file?: any
+  uploadId: string
 }
 
 const router = new Router({ prefix: '/api/file' })
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_, __, cb) => {
-      cb(null, path.join(__dirname, 'uploads-temp'))
-    },
-    filename: (_, file, cb) => {
-      cb(null, file.originalname)
-    }
-  })
-})
-
-const uploadDir = path.join(__dirname, 'Uploads')
-const mergedDir = path.join(__dirname, 'merged')
-
-fs.ensureDirSync(uploadDir)
-fs.ensureDirSync(mergedDir)
-
-const getUpload = (files: Array<string>) => {
-  return files.map((file) => parseInt(file.split('-')[1]))
-}
 
 router.post('/state', async (ctx) => {
-  const { hash } = ctx.request.body as Hash
-  const filePath = path.join(mergedDir, `${hash}`)
-  ctx.body = { exists: await fs.pathExists(filePath) }
-})
-
-router.post('/next', async (ctx) => {
-  const { hash } = ctx.request.body as Hash
-  const chunkDir = path.join(uploadDir, hash)
-  if (await fs.pathExists(chunkDir)) {
-    const files = await fs.readdir(chunkDir)
-    ctx.body = { uploaded: getUpload(files) }
-  } else {
-    ctx.body = { uploaded: [] }
-  }
-})
-
-router.post('/upload', upload.single('file'), async (ctx) => {
-  const file = (ctx.req as any).file
-
-  const { hash, index } = ctx.request.body as Chunck
-
-  if (!file || !hash || index === undefined) {
+  const { hash, uploadId } = ctx.request.body as Next
+  if (!hash || !uploadId) {
     ctx.status = 400
-    ctx.body = { message: '参数丢失' }
+    ctx.body = { error: '参数缺失' }
     return
   }
+  const dist = tmp(uploadId, hash)
+  let uploadedChunks: Array<number> = []
+  try {
+    const files = await dataFiles(dist)
+    uploadedChunks = files.map((f) => f.index)
+  } catch (e) {
+    uploadedChunks = []
+  }
+  ctx.body = { uploaded: uploadedChunks }
+})
 
-  const chunkDir = path.join(uploadDir, hash)
-  await fs.ensureDir(chunkDir)
 
-  const chunkPath = path.join(chunkDir, `chunk-${index}`)
-  await fs.move(file.path, chunkPath, { overwrite: true })
+router.post('/upload', async (ctx) => {
+  const files = ctx.request.files
+  const body = ctx.request.body as Chunck
+  const { hash, index, uploadId } = body
+  if (!files || !hash || index === undefined) {
+    ctx.status = 400
+    ctx.body = { message: '参数缺失' }
+    return
+  }
+  const dist = tmp(uploadId, hash)
+  const src = (files.file as any).filepath
+  await move(src, `${dist}/${index}.data`)
+  ctx.body = hash
+})
 
-  ctx.body = { success: true, index }
+
+router.post('/next', async (ctx) => {
+  const { hash, uploadId } = ctx.request.body as Next
+  if (!hash || !uploadId) {
+    ctx.status = 400
+    ctx.body = { error: '参数缺失' }
+    return
+  }
+  const dist = tmp(uploadId, hash)
+  try {
+    ctx.body = { next: next(dist) }
+  } catch (e) {
+    ctx.body = { next: 0 }
+  }
 })
 
 router.post('/merge', async (ctx) => {
-  const { hash, name, chunks } = ctx.request.body as Merge
-  const chunkDir = path.join(uploadDir, hash)
-  const mergedFilePath = path.join(mergedDir, name)
-
-  const writeStream = fs.createWriteStream(mergedFilePath)
-
-  for (let i = 0; i < chunks; i++) {
-    const chunkPath = path.join(chunkDir, `chunk-${i}`)
-    const chunkBuffer = await fs.readFile(chunkPath)
-    writeStream.write(chunkBuffer)
+  const { hash, name, chunks, uploadId } = ctx.request.body as Merge
+  if (!hash || !name || !chunks || !uploadId) {
+    ctx.status = 400
+    ctx.body = { error: '参数缺失' }
+    return
   }
-
+  const dist = tmp(uploadId, hash)
+  const files = await dataFiles(dist)
+  const fileList = files.map((f) => {
+    return dist + '/' + f.file
+  })
+  const src = upload()
+  const file = `${src}/${name}`
+  const writeStream = fs.createWriteStream(file)
+  for (const chunkPath of fileList) {
+    await new Promise<void>((resolve, reject) => {
+      const readStream = fs.createReadStream(chunkPath)
+      readStream.on('end', () => {
+        fs.unlink(chunkPath, () => resolve())
+      })
+      readStream.on('error', reject)
+      readStream.pipe(writeStream, { end: false })
+    })
+  }
   writeStream.end()
-
-  await fs.remove(chunkDir)
-
-  ctx.body = { url: `/merged/${name}` }
+  fs.rmdirSync(dist)
+  ctx.body = { name }
 })
 
 export default router
