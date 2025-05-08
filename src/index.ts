@@ -7,6 +7,7 @@ import KoaStatic from 'koa-static'
 import Router from 'koa-router'
 
 import fileRouter from './routes/file'
+import testRouter from './routes/test'
 
 const app = new Koa()
 
@@ -22,6 +23,9 @@ const router = new Router()
 
 router.use(fileRouter.routes())
 router.use(fileRouter.allowedMethods())
+
+router.use(testRouter.routes())
+router.use(testRouter.allowedMethods())
 
 app.use(router.routes())
 app.use(router.allowedMethods())
