@@ -1,27 +1,20 @@
-import Koa from 'koa'
+import path from 'path'
 
+import Koa from 'koa'
 import KoaBody from 'koa-body'
+import KoaStatic from 'koa-static'
 
 import Router from 'koa-router'
 
-import { mkdir } from './utils'
-
 import fileRouter from './routes/file'
-
-export const tmp = (...args: Array<string>) => {
-  return mkdir(__dirname, 'tmp', ...args)
-}
-
-export const upload = (...args: Array<string>) => {
-  return mkdir(__dirname, 'upload', ...args)
-}
 
 const app = new Koa()
 
 app.use(KoaBody({
   multipart: true,
   formidable: {
-    uploadDir: tmp()
+    uploadDir: path.resolve('temp'),
+    keepExtensions: true
   }
 }))
 
@@ -32,6 +25,10 @@ router.use(fileRouter.allowedMethods())
 
 app.use(router.routes())
 app.use(router.allowedMethods())
+
+app.use(KoaStatic(
+  path.resolve('upload')
+))
 
 app.listen(8080, () => {
   console.log('> 已启动 8080')
